@@ -9,5 +9,5 @@ dist/
 build/
 .env
 
-# Saída local de fumaça. Não é resultado do estudo.
+# Saída local de fumaça ou da avaliação. Não é resultado do estudo.
 results/

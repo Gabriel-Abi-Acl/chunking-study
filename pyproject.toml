@@ -12,6 +12,9 @@ dependencies = [
 gemini = ["google-genai>=1.39"]
 openai = ["openai>=1.50"]
 
+[project.scripts]
+evaluate-chunking = "chunking_study.evaluate:main"
+
 [dependency-groups]
 dev = [
     "pytest>=8.3",
