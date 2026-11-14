@@ -43,8 +43,8 @@ Decisões já fixadas no código:
 - Contenção: o chunk cobre o vão quando `chunk.doc_id == span.doc_id`, `chunk.start <= span.start` e `chunk.end >= span.end`. Não há match aproximado de string.
 - recall@k é a fração dos vãos da pergunta cobertos por algum chunk dos k primeiros. Sem vão, o valor é nulo, não zero.
 - O recíproco da posição é `1/rank` do primeiro chunk recuperado que cobre algum vão, ou 0 se nenhum cobre. O MRR do run é a média desses valores. A média ignora nulo e conserva o zero (`mean_defined`).
-- `span_contained` é verdadeiro só se cada vão da pergunta cabe inteiro em algum chunk recuperado. O runner usa o top-k, não o índice inteiro. A mesma função serve para perguntar se o corte sequer produziu um chunk que cubra o vão; o PR3 pode reportar as duas taxas.
-- `embedded_texts` conta textos enviados ao embedder: frases da quebra semântica, chunks do índice e perguntas. O corte semântico embeda a frase para decidir a quebra e o índice embeda o chunk de novo. Não é preço em dólar e não há cache neste PR.
+- `span_contained` é verdadeiro só se cada vão da pergunta cabe inteiro em algum chunk recuperado. O runner de fumaça usa o top-k, não o índice inteiro. A avaliação grava as duas taxas: contenção nos cinco primeiros (`span_containment_rate`) e contenção em qualquer chunk do índice (`index_span_containment_rate`).
+- `embedded_texts` conta textos enviados ao embedder: frases da quebra semântica, chunks do índice e perguntas. O corte semântico embeda a frase para decidir a quebra e o índice embeda o chunk de novo. Não é preço em dólar e não há cache neste PR. A avaliação usa a mesma conta, repetida em cada pergunta da configuração.
 - O embedder `fake` é um saco de palavras com hash SHA-256, normalizado. Existe para teste e fumaça offline. Não é baseline de qualidade.
 
 O SDK de Gemini ou OpenAI só é importado na primeira chamada de `embed`. Sem o pacote extra, a chamada falha com mensagem de instalação. A chave não entra no `repr` de `Settings` nem nas mensagens de erro.
@@ -80,6 +80,41 @@ uv run ruff check .
 uv run ruff format --check .
 uv run pytest
 ```
+
+## Avaliação offline
+
+O comando `evaluate-chunking` é o mesmo que `python -m chunking_study.evaluate`. Ele percorre `data/eval/v1/` (descrito abaixo) e grava um JSONL por pergunta e um JSON agregado. O embedder padrão é o hash. O número produzido pelo embedder de hash é conferência de pipeline, não achado sobre chunking. Este README não publica recall, MRR nem contenção. O diretório `results/` está no `.gitignore`.
+
+Na raiz, offline, sem chave:
+
+```bash
+uv run evaluate-chunking
+uv run python -m chunking_study.evaluate --strategy fixed --chunk-size 120
+```
+
+`--strategy` aceita `fixed`, `fixed_overlap`, `sentence_paragraph`, `semantic` ou `all` (o padrão). A grade padrão é tamanho 120 e limiar semântico 0.5. Sem `--overlap`, `fixed` grava overlap 0, `fixed_overlap` usa 20 (overlap 0 é inválido nessa estratégia; vinte não é overlap escolhido por experimento) e os outros cortes usam 0. Com a flag, `fixed` continua em 0 e os demais cruzam os overlaps que cabem no tamanho. `semantic` ainda cruza o limiar. `--chunk-size`, `--overlap` e `--threshold` repetem ou recebem lista separada por vírgula. `--unit tokens` só vale para `fixed` e `fixed_overlap`.
+
+`--output` é o diretório (padrão `results/eval`), com `records.jsonl` e `summary.json`. `--corpus` e `--queries` apontam outro conjunto; o padrão é o v1. A grade não lê `CHUNK_STRATEGY`, `CHUNK_SIZE`, `TOP_K` nem `EMBEDDING_PROVIDER`. Esses nomes continuam sendo o comando de fumaça.
+
+Provedor real não roda por acidente. `--provider` padrão é `fake`. `gemini` e `openai` exigem `--allow-live` e a chave (`GEMINI_API_KEY` ou `OPENAI_API_KEY`) no ambiente ou no `.env`. Sem `--allow-live`, ou sem a chave, o comando termina com código 2 e não chama a rede. A chave não entra no JSON nem na mensagem. A CI não usa esse caminho.
+
+### Como ler o agregado
+
+Cada objeto de `configs` é uma estratégia com um tamanho, um overlap e, no corte semântico, um limiar. `by_category` repete as métricas de recuperação nas categorias presentes. `chunk_count`, `mean_chunk_length` e `embedded_texts` são do índice daquela configuração, copiados em cada categoria: não mudam com a pergunta.
+
+| campo | leitura |
+| --- | --- |
+| `recall_at_1`, `recall_at_3`, `recall_at_5` | Média, entre perguntas, da fração de vãos cobertos por algum chunk dos k primeiros. k é 1, 3 e 5. |
+| `mrr` | Média do recíproco da posição do primeiro chunk, entre os cinco primeiros, que cobre algum vão. Acerto só depois do quinto vale 0, não 1/6. Nenhum acerto nos cinco vale 0. |
+| `span_containment_rate` | Fração das perguntas em que cada vão cabe inteiro em algum chunk dos cinco primeiros. Não é a média do recall: um vão de dois, com um só coberto, conta recall 0,5 e contenção falsa. |
+| `index_span_containment_rate` | Fração das perguntas em que cada vão cabe inteiro em algum chunk do índice, recuperado ou não. Mede o corte, não o ranking. |
+| `chunk_count` | Quantidade de chunks gravados no índice. |
+| `mean_chunk_length` | Média do comprimento dos chunks, em caracteres (`len` de `str`). Índice vazio deixa o campo nulo. |
+| `embedded_texts` | Textos enviados ao embedder nessa configuração. Proxy de volume, não preço. |
+
+Pergunta sem vão fica com métrica nula e `error` nulo. Erro de embedding ou de transporte preenche `error` e também anula a métrica. Se o corte não termina, `chunk_count` e `mean_chunk_length` ficam nulos; `embedded_texts` ainda conta o que já foi enviado. A média ignora nulo e conserva o zero. Nulo no agregado significa que não houve valor definido, não que o recall foi zero. `error_count` conta as linhas com erro. `query_count` inclui essas linhas.
+
+O JSONL repete a configuração em cada linha, mais `query_id`, `category`, os três recalls, `reciprocal_rank`, `span_contained` (os cinco primeiros), `span_contained_in_index` e `retrieved_ids`. `embedded_texts` nessa linha é o total da configuração, não um prefixo.
 
 ## Conjunto de avaliação (v1)
 
@@ -140,17 +175,18 @@ pergunta → embedder → top-k por cosseno → métricas
 | `chunking_study.embeddings` | hash, Gemini ou OpenAI; SDK só na primeira chamada |
 | `chunking_study.index` | cosseno em memória |
 | `chunking_study.metrics` | recall@k, recíproco da posição, contenção do vão |
-| `chunking_study.runner` | um registro por pergunta |
+| `chunking_study.runner` | um registro por pergunta, no comando de fumaça |
+| `chunking_study.evaluate` | grade no v1, JSONL, agregado e a trava do provedor real |
 | `chunking_study.corpus` | `.txt`/`.md`, JSONL do placeholder e JSONL do eval com offset conferido |
 | `chunking_study.config` | variáveis do `.env.example` |
 
 ## Roadmap
 
 - **PR1 — esqueleto.** Interfaces, embedder fake, índice, métricas mínimas, placeholder e CI offline. Sem resultado.
-- **PR2 — corpus e gabarito (este).** `data/eval/v1/`, com 12 documentos e 48 perguntas. Sem resposta de modelo e sem métrica preenchida.
-- **PR3 — avaliação.** Agregar as métricas por estratégia (recall@k, MRR, contenção no top-k e no índice, chunks, volume embeddado) num formato reproduzível. Sem tabela preenchida por embedder real.
+- **PR2 — corpus e gabarito.** `data/eval/v1/`, com 12 documentos e 48 perguntas. Sem resposta de modelo e sem métrica preenchida.
+- **PR3 — avaliação (este).** `evaluate-chunking` grava JSONL e agregado da grade no v1. O hash só confere o pipeline. Sem tabela de embedder real.
 - **PR4 — experimentos.** Rodar o embedder real, gráficos e relatório no README. Só então entram números.
 
 ## O que ainda não está feito
 
-Não há execução com embedder real no git, não há tabela preenchida e não há gráfico. O placeholder não é o corpus da comparação. O corpus v1 também ainda não foi medido. O hash não mede qualidade de recuperação. Qualquer número de qualidade citado antes do PR4 está fora deste estudo.
+Não há execução com embedder real no git, não há tabela preenchida e não há gráfico. O placeholder não é o corpus da comparação. O comando de avaliação grava número local em `results/`, fora do git; com o hash, esse número não é resultado. O hash não mede qualidade de recuperação. Qualquer número de qualidade citado antes do PR4 está fora deste estudo.
