@@ -1,0 +1,4 @@
+{"id": "q01", "question": "Qual o horário de abertura da biblioteca da Cooperativa Rio Claro?", "passages": [{"doc_id": "biblioteca", "passage": "A biblioteca da Cooperativa Rio Claro abre de terça a sábado, das 9h às 17h."}]}
+{"id": "q02", "question": "Por quantos dias dura o empréstimo de livro?", "passages": [{"doc_id": "biblioteca", "passage": "Empréstimos duram 14 dias."}]}
+{"id": "q03", "question": "Quanto de verdura cada família pode levar da horta?", "passages": [{"doc_id": "horta", "passage": "Cada família leva até 2 kg de verdura."}]}
+{"id": "q04", "question": "Quanto custa o reparo de câmara na oficina de bicicletas?", "passages": [{"doc_id": "oficina", "passage": "O reparo de câmara custa 15 reais."}]}
