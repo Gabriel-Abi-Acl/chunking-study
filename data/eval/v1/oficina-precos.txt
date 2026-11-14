@@ -1,0 +1,19 @@
+Tabela de preços da oficina de bicicletas, vigente neste semestre. O balcão lê esta tabela e não faz desconto fora dela.
+
+Serviço | Valor | Prazo
+Câmara | quinze reais | mesmo dia
+Corrente | quarenta reais | dois dias
+Freio | vinte e cinco reais | mesmo dia
+Quadro | não pinta | encaminhar
+
+O reparo de câmara custa quinze reais e fica pronto no mesmo dia. A linha correspondente está reproduzida na tabela acima. A troca de corrente custa quarenta reais e fica pronta em dois dias.
+
+O ajuste de freio custa vinte e cinco reais quando a peça já está no estoque do balcão. O ajuste de freio fica pronto no mesmo dia, e a peça fora do estoque empurra o prazo em uma semana, sem cobrança extra pela espera. O balcão avisa a pessoa associada quando a peça não está no estoque.
+
+A oficina não pinta quadro de bicicleta e não recebe quadro só para estética, mesmo com hora vaga no balcão.
+
+Quadro riscado segue para a oficina da cidade vizinha com um bilhete da secretaria, sem cobrança de transporte e sem vaga na van do lote sete. A bicicleta permanece no gancho da oficina até a pessoa retirar o bilhete.
+
+A câmara reserva fica guardada na gaveta três do balcão. Gaveta três não guarda ferramenta. Ferramenta volta ao gancho da parede no fim do expediente.
+
+Pagamento é em dinheiro, no ato da retirada. O recibo sai no caderno da oficina, com o nome de quem retirou a bicicleta e o serviço feito.

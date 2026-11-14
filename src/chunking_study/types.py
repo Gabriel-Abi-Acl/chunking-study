@@ -2,6 +2,7 @@
 
 `start` é inclusivo e `end` é exclusivo, nos dois casos em caracteres
 (índice de `str`). Sem isso, contenção e overlap não têm o mesmo eixo.
+`Query.category` fica vazio no placeholder e nomeia o gabarito no eval.
 """
 
 from dataclasses import dataclass
@@ -36,6 +37,7 @@ class Query:
     query_id: str
     question: str
     gold_spans: tuple[GoldSpan, ...]
+    category: str = ""
 
 
 @dataclass(frozen=True)
